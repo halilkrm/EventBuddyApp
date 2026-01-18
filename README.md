@@ -1,1 +1,18 @@
+# EventBuddyApp
 EventBuddy is a social event planning app for iOS, built with SwiftUI and backed by Firebase. It allows users to create events and manage a sophisticated invitation system with "accept" and "reject" capabilitie
+
+## Features
+- Event list
+- Event details
+- Accept&Reject
+
+## Technologies
+- Swift
+- SwiftUI
+- Firebase
+
+
+
+
+
+
