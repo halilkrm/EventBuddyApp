@@ -2,127 +2,131 @@
 
 # 🎉 EventBuddyApp
 
-An iOS event-planning application built with **SwiftUI** and **Firebase**, focused on creating events, inviting participants by email, and managing invitation states in real time.
+An iOS event and invitation application built with **SwiftUI**, **Firebase Authentication**, and **Cloud Firestore**.
 
 ![Swift](https://img.shields.io/badge/Swift-iOS-F05138?logo=swift&logoColor=white)
 ![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-0D96F6?logo=swift&logoColor=white)
-![Firebase](https://img.shields.io/badge/Backend-Firebase-FFCA28?logo=firebase&logoColor=black)
-![Firestore](https://img.shields.io/badge/Database-Cloud%20Firestore-orange)
+![Firebase](https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-FFCA28?logo=firebase&logoColor=black)
 
 </div>
 
 ---
 
-## 🎯 Overview
+## Overview
 
-EventBuddyApp provides an event and invitation workflow for authenticated users.
+The current source code implements an authenticated event workflow backed by Firebase.
 
-Users can:
-
-- authenticate,
-- create events,
-- add date, location, and description information,
-- invite users by email,
-- see owned and accepted events,
-- review pending invitations,
-- accept or reject invitations,
-- delete events they own,
-- receive live Firestore-backed list updates.
+Users can create events, invite users by email, view events according to participant status, accept or reject pending invitations, delete events when they are the owner, and sign out.
 
 ---
 
-## ✨ Features
+## Implemented Features
 
-### 🔐 Authentication
+### Authentication
 
-- Firebase Authentication session handling
-- Auth-state observation
-- Login and sign-up flows
-- Sign-out support
+- Firebase Authentication state observation
+- Authenticated user session stored in `MainViewModel`
+- Sign-out through `Auth.auth().signOut()`
 
-### 📅 Event Management
+### Event Creation
 
-- Create a new event
-- Event title
-- Date selection
-- Location
-- Description
-- Invitee emails
-- Owner-aware delete behavior
+The event form includes:
 
-### ✉️ Invitation Workflow
+- title
+- date
+- location
+- description
+- comma-separated invitee email addresses
 
-Participant states are represented as event membership statuses:
+The save action calls `EventListViewModel.addEvent(...)`.
 
-| Status | Meaning |
-|---|---|
-| `owner` | Event creator |
-| `pending` | Invitation waiting for a response |
-| `accepted` | Invitation accepted |
-| `rejected` | Invitation rejected |
+### Firestore Event Storage
 
-The app keeps owned, accepted, and pending event queries separate and updates them through Firestore snapshot listeners.
-
----
-
-## 🏗️ Architecture
-
-The project uses a SwiftUI-first structure with observable view models and Firebase services.
+New event documents are added to:
 
 ```text
-EventBuddyApp/
-├── EventBuddyApp.swift
-├── MainView.swift
-├── MainViewModel.swift
-├── AuthenticationView.swift
-├── LoginViewController.swift
-├── LoginViewRepresentable.swift
-├── SignUpViewController.swift
-├── SignUpViewRepresentable.swift
-├── AddEventView.swift
-├── EventListViewModel.swift
-├── EventRowView.swift
-├── PendingEventRow.swift
-├── Event.swift
-└── GoogleService-Info.plist
+events
 ```
 
-### UI integration
+The stored fields used by the current source are:
 
-The repository combines:
+```text
+title
+date
+description
+location
+createdById
+participants
+```
 
-- SwiftUI application screens
-- UIKit authentication controllers
-- SwiftUI representable wrappers for bridging UIKit flows
+`participants` is a map from user UID to status.
+
+### Invitation Statuses
+
+The current code uses these status strings:
+
+| Status | Current code behavior |
+|---|---|
+| `owner` | Event owner |
+| `pending` | Invitation waiting for response |
+| `accepted` | Accepted invitation |
+| `rejected` | Rejected invitation |
+
+### Email-to-UID Resolution
+
+Invitee emails are queried from the Firestore `users` collection.
+
+The current source reads:
+
+```text
+email
+uid
+```
+
+from matching user documents before building the participant map.
+
+### Firestore Snapshot Listeners
+
+`EventListViewModel` installs separate snapshot listeners for:
+
+- events where the current user is `owner`
+- events where the current user is `accepted`
+- events where the current user is `pending`
+
+Owned and accepted events are merged into the main event list. Pending events are published separately.
+
+### Invitation Actions
+
+- Accept: updates `participants.<userID>` to `accepted`
+- Reject: updates `participants.<userID>` to `rejected`
+
+### Delete Check
+
+Before deleting an event, the current code checks:
+
+```swift
+event.participants[userID] == "owner"
+```
+
+Only then does it call Firestore document deletion.
 
 ---
 
-## 🔄 Event Data Flow
+## Main Source Files
 
-```mermaid
-flowchart LR
-    A[Authenticated User] --> B[Create Event]
-    B --> C[Firestore events]
-    C --> D[Owner Query]
-    C --> E[Accepted Query]
-    C --> F[Pending Query]
-
-    F --> G[Accept]
-    F --> H[Reject]
-    G --> I[status = accepted]
-    H --> J[status = rejected]
-
-    D --> K[Main Event List]
-    E --> K
+```text
+EventBuddy/
+└── EventBuddy/
+    ├── AddEventView.swift
+    ├── EventListViewModel.swift
+    ├── MainViewModel.swift
+    ├── Event.swift
+    └── ...
 ```
 
 ---
 
-## 🔥 Firebase Data Model
-
-The current implementation stores event documents in an `events` collection.
-
-A simplified conceptual document:
+## Firebase Data Shape Used by the Code
 
 ```text
 events/{eventId}
@@ -130,63 +134,59 @@ events/{eventId}
 ├── date
 ├── description
 ├── location
-├── ownerId
+├── createdById
 └── participants
-    ├── userA: owner
-    ├── userB: pending
-    └── userC: accepted
+    └── {userId}: owner | pending | accepted | rejected
 ```
 
-Invitee emails are resolved against user records before participant statuses are added.
+The invite lookup code also queries:
+
+```text
+users
+├── email
+└── uid
+```
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
-### Prerequisites
+### Requirements
 
 - macOS
 - Xcode
-- An iOS simulator or physical device
-- A Firebase project
+- iOS Simulator or physical iOS device
+- Firebase project
 
-### 1. Clone the repository
+### Clone
 
 ```bash
 git clone https://github.com/halilkrm/EventBuddyApp.git
 cd EventBuddyApp
 ```
 
-### 2. Open the Xcode project
+Open the included Xcode project.
 
-Open the `.xcodeproj` file in Xcode.
+### Firebase
 
-### 3. Configure Firebase
-
-Create your own Firebase project and configure at least the services used by the app:
+The current source imports and uses:
 
 - Firebase Authentication
 - Cloud Firestore
 
-Download your project's `GoogleService-Info.plist` and add/replace it in the Xcode target.
-
-> Use your own Firebase project configuration when running a fork or local copy.
-
-### 4. Configure Firestore data and rules
-
-The application expects event data and user lookup data compatible with the current source-code queries. Review the Firestore collection names and security rules before production use.
-
-### 5. Run
-
-Select a simulator/device and press **Run** in Xcode.
+A Firebase configuration compatible with the project is required to run those flows.
 
 ---
 
-## ⚠️ Notes
+## Current Code Notes
 
-- This repository is an application project, not a production-ready event platform.
-- Firestore security rules are critical for enforcing ownership and invitation permissions server-side.
-- Firebase configuration should be reviewed before publishing a production build.
-- The current source includes real-time listeners; listener lifecycle and query/index requirements should be considered as the dataset grows.
+- Firestore collection and field names are hard-coded in the source.
+- Email invitation lookup depends on matching documents in the `users` collection.
+- The Firestore `in` query used for email lookup has service-side query constraints.
+- The repository includes Firebase configuration for the checked-in project; forks should use configuration appropriate to their own Firebase project.
 
 ---
+
+## License
+
+This repository contains an MIT License.
